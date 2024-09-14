@@ -4,6 +4,8 @@ mod graphics;
 mod instruction;
 mod memory;
 mod register;
+mod keyboard;
+mod sdl_context;
 
 use emulator::Chip8;
 

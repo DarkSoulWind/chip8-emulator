@@ -3,14 +3,14 @@ use core::panic;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
-use crate::graphics::Graphics;
 use crate::instruction::Instruction;
 use crate::memory::Memory;
 use crate::register::Register;
+use crate::sdl_context::SdlContext;
 
 pub struct Chip8 {
     memory: Memory,
-    graphics: Option<Graphics>,
+    sdl_context: SdlContext,
 }
 
 impl Chip8 {
@@ -23,7 +23,7 @@ impl Chip8 {
 
                 let mut chip8 = Chip8 {
                     memory,
-                    graphics: None,
+                    sdl_context: SdlContext::new(),
                 };
                 chip8.read_data(&data);
 
@@ -39,7 +39,7 @@ impl Chip8 {
 
         let mut chip8 = Chip8 {
             memory,
-            graphics: None,
+            sdl_context: SdlContext::new(),
         };
         chip8.read_data(&data);
 
@@ -47,12 +47,7 @@ impl Chip8 {
     }
 
     pub fn setup_graphics(&mut self) {
-        match self.graphics {
-            Some(_) => {}
-            None => {
-                self.graphics = Some(Graphics::new());
-            }
-        }
+        self.sdl_context.setup_graphics();
     }
 
     fn read_data(&mut self, data: &str) {
@@ -129,23 +124,22 @@ impl Chip8 {
 
     pub fn run(&mut self) {
         'fde: loop {
-            match &self.graphics {
-                Some(gfx) => {
-                    let mut event_pump =
-                        gfx.get_event_pump().expect("Unable to receive event pump");
+            let mut event_pump = self.sdl_context.get_event_pump().expect("Unable to receive event pump");
 
-                    for event in event_pump.poll_iter() {
-                        match event {
-                            Event::Quit { .. }
-                            | Event::KeyDown {
-                                keycode: Some(Keycode::Escape),
-                                ..
-                            } => break 'fde,
-                            _ => {}
-                        }
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => break 'fde,
+                    Event::KeyDown {
+                        keycode: Some(key), ..
+                    } => {
+                        println!("{}: {}", key, key.into_i32());
                     }
+                    _ => {}
                 }
-                None => {}
             }
 
             if self.cycle() == -1 {
@@ -160,10 +154,6 @@ impl Chip8 {
         self.memory
             .set16(Register::PC as usize, next_instruction_address + 2);
         let next_instruction = self.memory.get16(next_instruction_address as usize);
-        // println!(
-        //     "{:#4x} next instruction = {:#4x}",
-        //     next_instruction_address, next_instruction
-        // );
         next_instruction
     }
 
@@ -207,20 +197,13 @@ impl Chip8 {
             }
             Instruction::LDI(register) => {
                 self.memory.set16(Register::IR as usize, register);
-                println!("Set IR to {:#x}", register);
             }
             Instruction::DRW(vx, vy, height) => {
                 self.draw_update(Instruction::DRW(vx, vy, height));
-                match &mut self.graphics {
-                    Some(gfx) => {
-                        gfx.render(&self.memory);
-                        // while gfx.is_showing() {
-                        // }
-                    }
-                    None => {
-                        panic!("Cannot call draw function: Graphics have not been initialised")
-                    }
-                }
+                self.sdl_context.render_graphics(&self.memory);
+            }
+            Instruction::LDK(vx, key) => {
+                todo!()
             }
         }
     }
@@ -231,10 +214,6 @@ impl Chip8 {
                 let x_position = self.memory.get8(vx as usize);
                 let y_position = self.memory.get8(vy as usize);
                 let index_location = self.memory.get16(Register::IR as usize);
-                // println!(
-                //     "Index location = {:#x} ({}, {})",
-                //     index_location, x_position, y_position
-                // );
                 for i in 0..height {
                     let new_byte_data = self.memory.get8((index_location as usize) + (i as usize));
                     for j in 0..8 {
@@ -242,15 +221,6 @@ impl Chip8 {
                             self.memory.get8_framebuffer(x_position + j, y_position + i);
                         let new_bit_data = (new_byte_data >> j) & 1;
                         let xored = new_bit_data ^ old_bit_data;
-                        // println!(
-                        //     "({}, {}) {}: {:08b} ^ {:08b} = {:08b}",
-                        //     x_position,
-                        //     y_position + i,
-                        //     byte_location,
-                        //     old_bit_data,
-                        //     new_bit_data,
-                        //     xored
-                        // );
                         self.memory
                             .set8_framebuffer(x_position + j, y_position + i, xored);
                     }
@@ -263,21 +233,11 @@ impl Chip8 {
     }
 
     pub fn show(&mut self) {
-        match &mut self.graphics {
-            Some(gfx) => gfx.show(),
-            None => {
-                panic!("Cannot show window: Graphics have not been initialised")
-            }
-        }
+        self.sdl_context.show_window();
     }
 
     pub fn hide(&mut self) {
-        match &mut self.graphics {
-            Some(gfx) => gfx.hide(),
-            None => {
-                panic!("Cannot hide window: Graphics have not been initialised")
-            }
-        }
+        self.sdl_context.hide_window();
     }
 
     // helper functions for testing

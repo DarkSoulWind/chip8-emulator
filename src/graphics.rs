@@ -2,21 +2,18 @@ use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-use sdl2::EventPump;
 use sdl2::Sdl;
 use std::time::Duration;
 
 use crate::memory::Memory;
 
 pub struct Graphics {
-    sdl_context: Sdl,
     canvas: Canvas<Window>,
     is_showing: bool,
 }
 
 impl Graphics {
-    pub fn new() -> Self {
-        let sdl_context = sdl2::init().expect("Unable to initialise sdl2");
+    pub fn new(sdl_context: &Sdl) -> Self {
         let video_subsystem = sdl_context
             .video()
             .expect("Unable to initialise video subsystem");
@@ -33,7 +30,6 @@ impl Graphics {
             .build()
             .expect("Unable to create canvas");
         Self {
-            sdl_context,
             canvas,
             is_showing: false,
         }
@@ -49,10 +45,6 @@ impl Graphics {
 
     pub fn hide(&mut self) {
         self.is_showing = false;
-    }
-
-    pub fn get_event_pump(&self) -> Result<EventPump, String> {
-        self.sdl_context.event_pump()
     }
 
     pub fn render(&mut self, memory: &Memory) {

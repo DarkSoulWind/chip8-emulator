@@ -13,6 +13,7 @@ pub enum Instruction {
     ADDDir(Register, Register),  // ADD Vx, Vy (Set Vx = Vx + Vy, set VF = carry)
     LDI(u16),                    // LD I, NNN (Set I = NNN)
     DRW(Register, Register, u8), // DRW Vx, Vy, N
+    LDK(Register, u8),               // LD Vx, K
 }
 
 impl Instruction {
