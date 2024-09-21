@@ -9,7 +9,6 @@ use crate::memory::Memory;
 
 pub struct Graphics {
     canvas: Canvas<Window>,
-    is_showing: bool,
 }
 
 impl Graphics {
@@ -29,22 +28,7 @@ impl Graphics {
             .into_canvas()
             .build()
             .expect("Unable to create canvas");
-        Self {
-            canvas,
-            is_showing: false,
-        }
-    }
-
-    pub fn is_showing(&self) -> bool {
-        self.is_showing
-    }
-
-    pub fn show(&mut self) {
-        self.is_showing = true;
-    }
-
-    pub fn hide(&mut self) {
-        self.is_showing = false;
+        Self { canvas }
     }
 
     pub fn render(&mut self, memory: &Memory) {
@@ -87,9 +71,7 @@ impl Graphics {
                 .unwrap();
         }
 
-        if self.is_showing {
-            self.canvas.present();
-            std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
-        }
+        self.canvas.present();
+        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 }

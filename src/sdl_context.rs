@@ -1,48 +1,73 @@
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 use sdl2::EventPump;
 use sdl2::Sdl;
 
 use crate::graphics::Graphics;
+use crate::key::Key;
 use crate::keyboard::Keyboard;
 use crate::memory::Memory;
 
 pub struct SdlContext {
     _sdl_context: Sdl,
-    graphics: Option<Graphics>,
+    graphics: Graphics,
     keyboard: Keyboard,
+    waiting_for_keypress: bool,
 }
 
 impl SdlContext {
     pub fn new() -> Self {
         let _sdl_context = sdl2::init().expect("Unable to initialise sdl2");
         Self {
-            graphics: None,
+            graphics: Graphics::new(&_sdl_context),
+            /* event_pump: _sdl_context.event_pump().unwrap(), */
             keyboard: Keyboard::new(),
+            waiting_for_keypress: false,
             _sdl_context,
         }
     }
 
-    pub fn get_event_pump(&self) -> Result<EventPump, String> {
-        self._sdl_context.event_pump()
-    }
-
-    pub fn setup_graphics(&mut self) {
-        match &mut self.graphics {
-            Some(_) => {},
-            None => {
-                self.graphics = Some(Graphics::new(&self._sdl_context));
-            },
-        }
+    pub fn get_event_pump(&mut self) -> EventPump {
+        self._sdl_context.event_pump().unwrap()
     }
 
     pub fn render_graphics(&mut self, memory: &Memory) {
-        self.graphics.as_mut().expect("Graphics have not been initialised").render(memory);
+        self.graphics.render(memory);
     }
 
-    pub fn show_window(&mut self) {
-        self.graphics.as_mut().expect("Graphics have not been initialised").show();
+    pub fn wait_for_keypress(&mut self) {
+        self.waiting_for_keypress = true;
     }
 
-    pub fn hide_window(&mut self) {
-        self.graphics.as_mut().expect("Graphics have not been initialised").hide();
+    pub fn handle_input(&mut self) -> Result<(), &str> {
+        let mut event_pump = self._sdl_context.event_pump().unwrap();
+
+        'waiting: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => return Err("QUIT"),
+                    Event::KeyDown {
+                        keycode: Some(key), ..
+                    } => {
+                        if self.waiting_for_keypress {
+                            let theKey = Key::try_from(key).unwrap();
+                            println!("{}: {} ({:?})", key, key.into_i32(), theKey);
+                            self.waiting_for_keypress = false;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if !self.waiting_for_keypress {
+                break 'waiting;
+            }
+        }
+
+        Ok(())
     }
 }

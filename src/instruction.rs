@@ -13,7 +13,7 @@ pub enum Instruction {
     ADDDir(Register, Register),  // ADD Vx, Vy (Set Vx = Vx + Vy, set VF = carry)
     LDI(u16),                    // LD I, NNN (Set I = NNN)
     DRW(Register, Register, u8), // DRW Vx, Vy, N
-    LDK(Register, u8),               // LD Vx, K
+    LDK(Register),               // (0xFX0A) LD Vx, K
 }
 
 impl Instruction {
@@ -45,6 +45,12 @@ impl Instruction {
             },
             0xA => Instruction::LDI(((n2 as u16) << 8) | (b2 as u16)),
             0xD => Instruction::DRW(vx, vy, n4),
+            0xF => match b2 {
+                0x0A => Instruction::LDK(Register::v_register_from(n2)),
+                _ => {
+                    panic!("F ERM WHAT THE FUCKING SIGMA")
+                }
+            },
             _ => {
                 panic!("ERM WHAT THE FUCKING SIGMA")
             }

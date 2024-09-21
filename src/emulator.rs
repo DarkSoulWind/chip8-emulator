@@ -17,18 +17,7 @@ impl Chip8 {
     pub fn load_from_file(filepath: &str) -> Result<Self, &str> {
         let contents = std::fs::read_to_string(filepath);
         match contents {
-            Ok(data) => {
-                let mut memory = Memory::new();
-                memory.set16(Register::PC as usize, 0x200);
-
-                let mut chip8 = Chip8 {
-                    memory,
-                    sdl_context: SdlContext::new(),
-                };
-                chip8.read_data(&data);
-
-                Ok(chip8)
-            }
+            Ok(data) => Ok(Chip8::load_from_text(&data)),
             Err(_) => Err("Unable to read file contents"),
         }
     }
@@ -44,10 +33,6 @@ impl Chip8 {
         chip8.read_data(&data);
 
         chip8
-    }
-
-    pub fn setup_graphics(&mut self) {
-        self.sdl_context.setup_graphics();
     }
 
     fn read_data(&mut self, data: &str) {
@@ -124,23 +109,8 @@ impl Chip8 {
 
     pub fn run(&mut self) {
         'fde: loop {
-            let mut event_pump = self.sdl_context.get_event_pump().expect("Unable to receive event pump");
-
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'fde,
-                    Event::KeyDown {
-                        keycode: Some(key), ..
-                    } => {
-                        println!("{}: {}", key, key.into_i32());
-                    }
-                    _ => {}
-                }
-            }
+            self.sdl_context.render_graphics(&self.memory);
+            self.sdl_context.handle_input().unwrap();
 
             if self.cycle() == -1 {
                 break 'fde;
@@ -200,10 +170,11 @@ impl Chip8 {
             }
             Instruction::DRW(vx, vy, height) => {
                 self.draw_update(Instruction::DRW(vx, vy, height));
-                self.sdl_context.render_graphics(&self.memory);
             }
-            Instruction::LDK(vx, key) => {
-                todo!()
+            Instruction::LDK(vx) => {
+                println!("Waiting for keypress...");
+                let key = self.sdl_context.wait_for_keypress();
+                /* self.memory.set8(vx as usize, key as u8); */
             }
         }
     }
@@ -230,14 +201,6 @@ impl Chip8 {
                 panic!("Not a draw call")
             }
         }
-    }
-
-    pub fn show(&mut self) {
-        self.sdl_context.show_window();
-    }
-
-    pub fn hide(&mut self) {
-        self.sdl_context.hide_window();
     }
 
     // helper functions for testing
