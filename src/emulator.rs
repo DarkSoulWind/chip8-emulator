@@ -1,8 +1,3 @@
-use core::panic;
-
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-
 use crate::instruction::Instruction;
 use crate::memory::Memory;
 use crate::register::Register;
@@ -118,6 +113,15 @@ impl Chip8 {
         }
     }
 
+    pub fn run_test(&mut self){
+        'fde: loop {
+
+            if self.cycle() == -1 {
+                break 'fde;
+            }
+        }
+    }
+
     pub fn fetch(&mut self) -> u16 {
         // fetch instruction at PC and add 2 to PC
         let next_instruction_address = self.memory.get16(Register::PC as usize);
@@ -130,7 +134,7 @@ impl Chip8 {
     pub fn execute(&mut self, instruction: Instruction) {
         match instruction {
             Instruction::CLS => {
-                todo!("Clearing deez nuts needs to be implemented")
+                self.memory.clear_framebuffer();
             }
             Instruction::JP(nnn) => {
                 self.memory.set16(Register::PC as usize, nnn);
@@ -258,7 +262,7 @@ mod tests {
     202: 7001
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x02)
     }
 
@@ -270,7 +274,7 @@ mod tests {
     204: 8010 // LD v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x01)
     }
 
@@ -282,7 +286,7 @@ mod tests {
     204: 8011 // OR v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x01)
     }
 
@@ -294,7 +298,7 @@ mod tests {
     204: 8012 // AND v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x00)
     }
 
@@ -306,7 +310,7 @@ mod tests {
     204: 8013 // XOR v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x06)
     }
 
@@ -318,7 +322,7 @@ mod tests {
     204: 8014 // ADD v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x02)
     }
 
@@ -328,7 +332,7 @@ mod tests {
     200: A300 // SET IR, 0x300
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run();
+        chip8.run_test();
         assert_eq!(chip8.get16(Register::IR as usize), 0x300)
     }
 }

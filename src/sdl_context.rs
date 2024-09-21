@@ -1,17 +1,14 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::EventPump;
 use sdl2::Sdl;
 
 use crate::graphics::Graphics;
 use crate::key::Key;
-use crate::keyboard::Keyboard;
 use crate::memory::Memory;
 
 pub struct SdlContext {
     _sdl_context: Sdl,
     graphics: Graphics,
-    keyboard: Keyboard,
     waiting_for_keypress: bool,
 }
 
@@ -21,14 +18,9 @@ impl SdlContext {
         Self {
             graphics: Graphics::new(&_sdl_context),
             /* event_pump: _sdl_context.event_pump().unwrap(), */
-            keyboard: Keyboard::new(),
             waiting_for_keypress: false,
             _sdl_context,
         }
-    }
-
-    pub fn get_event_pump(&mut self) -> EventPump {
-        self._sdl_context.event_pump().unwrap()
     }
 
     pub fn render_graphics(&mut self, memory: &Memory) {
@@ -54,8 +46,8 @@ impl SdlContext {
                         keycode: Some(key), ..
                     } => {
                         if self.waiting_for_keypress {
-                            let theKey = Key::try_from(key).unwrap();
-                            println!("{}: {} ({:?})", key, key.into_i32(), theKey);
+                            let the_key = Key::try_from(key).unwrap();
+                            println!("{}: {} ({:?})", key, key.into_i32(), the_key);
                             self.waiting_for_keypress = false;
                         }
                     }

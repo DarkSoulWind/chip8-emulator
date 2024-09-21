@@ -4,6 +4,8 @@ use crate::register::Register;
 pub enum Instruction {
     CLS,
     JP(u16),                     // JP NNN
+    SE(Register, u16),           // (0x3XNN) SE Vx, NN (Skip next instruction if Vx == NN)
+    SNE(Register, u16),          // (0x4XNN) SNE Vx, NN (Skip next instruction if Vx != NN)
     LDImm(Register, u8),         // LD Vx, NN (Set Vx = NN)
     ADDImm(Register, u8),        // ADD Vx, NN (Set Vx = Vx + NN)
     LDDir(Register, Register),   // LD Vx, Vy (Set Vx = Vy)
@@ -33,6 +35,8 @@ impl Instruction {
 
         return match n1 {
             1 => Instruction::JP(((n2 as u16) << 8) | (b2 as u16)),
+            3 => Instruction::SE(vx, b2 as u16),
+            4 => Instruction::SNE(vx, b2 as u16),
             6 => Instruction::LDImm(vx, b2),
             7 => Instruction::ADDImm(vx, b2),
             8 => match n4 {

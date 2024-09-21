@@ -44,6 +44,12 @@ impl Memory {
     pub fn get_framebuffer_location(&self, x: usize, y: usize) -> usize {
         (y * 64) + x
     }
+
+    pub fn clear_framebuffer(&mut self) {
+        for i in 0..(64 * 32) {
+            self.framebuffer[i] = 0;
+        }
+    }
 }
 
 #[cfg(test)]

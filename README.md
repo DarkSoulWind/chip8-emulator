@@ -9,7 +9,7 @@ Here's a list of it's capabilities that I've implemented:
 - Timers:
     - [ ] Delay Timer
     - [ ] Sound Timer
-- [ ] Input Handling
+- [x] Input Handling
 - Registers:
     - [x] General Purpose Registers (V0 to VF)
     - [x] Index Register
