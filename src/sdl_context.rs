@@ -17,7 +17,6 @@ impl SdlContext {
         let _sdl_context = sdl2::init().expect("Unable to initialise sdl2");
         Self {
             graphics: Graphics::new(&_sdl_context),
-            /* event_pump: _sdl_context.event_pump().unwrap(), */
             waiting_for_keypress: false,
             _sdl_context,
         }

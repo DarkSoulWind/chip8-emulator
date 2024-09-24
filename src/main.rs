@@ -17,9 +17,10 @@ pub fn main() {
         206: D015 // DRW V0, V1, 5 (draw at position (10, 5))
         208: 6219 // SET V2, 25
         20A: 631E // SET V3, 30
-        20C: D232
-        20E: 00E0
-        210: 120E
+        20C: 3219
+        20E: D232
+        210: 00E0
+        212: 1200
 
         300: FF
         301: 81
@@ -32,6 +33,6 @@ pub fn main() {
     //     200: F10A // wait for keypress, store it in V1
     //     "#;
 
-    let mut chip8 = Chip8::load_from_text(code);
+    let mut chip8 = Chip8::load_from_text(code).setup_sdl();
     chip8.run();
 }

@@ -3,17 +3,20 @@ use crate::register::Register;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     CLS,
-    JP(u16),                     // JP NNN
-    SE(Register, u16),           // (0x3XNN) SE Vx, NN (Skip next instruction if Vx == NN)
-    SNE(Register, u16),          // (0x4XNN) SNE Vx, NN (Skip next instruction if Vx != NN)
-    LDImm(Register, u8),         // LD Vx, NN (Set Vx = NN)
-    ADDImm(Register, u8),        // ADD Vx, NN (Set Vx = Vx + NN)
-    LDDir(Register, Register),   // LD Vx, Vy (Set Vx = Vy)
-    OR(Register, Register),      // OR Vx, Vy (Set Vx = Vx OR Vy)
-    AND(Register, Register),     // AND Vx, Vy (Set Vx = Vx AND Vy)
-    XOR(Register, Register),     // XOR Vx, Vy (Set Vx = Vx XOR Vy)
-    ADDDir(Register, Register),  // ADD Vx, Vy (Set Vx = Vx + Vy, set VF = carry)
-    LDI(u16),                    // LD I, NNN (Set I = NNN)
+    JP(u16),                     // (0x1NNN) JP NNN
+    SEImm(Register, u8),         // (0x3XNN) SE Vx, NN (Skip next instruction if Vx == NN)
+    SNE(Register, u8),           // (0x4XNN) SNE Vx, NN (Skip next instruction if Vx != NN)
+    SEDir(Register, Register),   // (0x5XY0) SE Vx, Vy (Skip next instruction if Vx == Vy)
+    LDImm(Register, u8),         // (0x6XNN) LD Vx, NN (Set Vx = NN)
+    ADDImm(Register, u8),        // (0x7XNN) ADD Vx, NN (Set Vx = Vx + NN)
+    LDDir(Register, Register),   // (0x8XY0) LD Vx, Vy (Set Vx = Vy)
+    OR(Register, Register),      // (0x8XY1) OR Vx, Vy (Set Vx = Vx OR Vy)
+    AND(Register, Register),     // (0x8XY2) AND Vx, Vy (Set Vx = Vx AND Vy)
+    XOR(Register, Register),     // (0x8XY3) XOR Vx, Vy (Set Vx = Vx XOR Vy)
+    ADDDir(Register, Register),  // (0x8XY4) ADD Vx, Vy (Set Vx = Vx + Vy, set VF = carry)
+    SUB(Register, Register),     // (0x8XY5) SUB Vx, Vy (Set Vx = Vx - Vy, set VF = NOT borrow)
+    LDI(u16),                    // (0xANNN) LD I, NNN (Set I = NNN)
+    JPOff(u16),                  // (0xBNNN) JP V0, NNN (Jump to address V0 + NNN)
     DRW(Register, Register, u8), // DRW Vx, Vy, N
     LDK(Register),               // (0xFX0A) LD Vx, K
 }
@@ -33,10 +36,11 @@ impl Instruction {
         let vx = Register::v_register_from(n2);
         let vy = Register::v_register_from(n3);
 
-        return match n1 {
+        match n1 {
             1 => Instruction::JP(((n2 as u16) << 8) | (b2 as u16)),
-            3 => Instruction::SE(vx, b2 as u16),
-            4 => Instruction::SNE(vx, b2 as u16),
+            3 => Instruction::SEImm(vx, b2),
+            4 => Instruction::SNE(vx, b2),
+            5 => Instruction::SEDir(vx, vy),
             6 => Instruction::LDImm(vx, b2),
             7 => Instruction::ADDImm(vx, b2),
             8 => match n4 {
@@ -45,20 +49,20 @@ impl Instruction {
                 2 => Instruction::AND(vx, vy),
                 3 => Instruction::XOR(vx, vy),
                 4 => Instruction::ADDDir(vx, vy),
-                _ => panic!("8 ERM WHAT THE FUCKING SIGMA"),
+                5 => Instruction::SUB(vx, vy),
+                _ => panic!("Could not decode instruction beginning with 0x8"),
             },
             0xA => Instruction::LDI(((n2 as u16) << 8) | (b2 as u16)),
+            0xB => Instruction::JPOff(((n2 as u16) << 8) | (b2 as u16)),
             0xD => Instruction::DRW(vx, vy, n4),
             0xF => match b2 {
                 0x0A => Instruction::LDK(Register::v_register_from(n2)),
-                _ => {
-                    panic!("F ERM WHAT THE FUCKING SIGMA")
-                }
+                _ => panic!("Could not decode instruction beginning with 0xF"),
             },
             _ => {
-                panic!("ERM WHAT THE FUCKING SIGMA")
+                panic!("Could not decode instruction at all")
             }
-        };
+        }
     }
 }
 
@@ -117,5 +121,29 @@ mod tests {
     #[test]
     fn test_decode_ldi() {
         assert_eq!(Instruction::decode(0xA300), Instruction::LDI(0x300))
+    }
+
+    #[test]
+    fn test_decode_se_imm() {
+        assert_eq!(
+            Instruction::decode(0x3069),
+            Instruction::SEImm(Register::v_register_from(0), 0x69)
+        )
+    }
+
+    #[test]
+    fn test_decode_sne() {
+        assert_eq!(
+            Instruction::decode(0x4069),
+            Instruction::SNE(Register::v_register_from(0), 0x69)
+        )
+    }
+
+    #[test]
+    fn test_decode_se_dir() {
+        assert_eq!(
+            Instruction::decode(0x5010),
+            Instruction::SEDir(Register::v_register_from(0), Register::v_register_from(1))
+        )
     }
 }

@@ -5,7 +5,7 @@ use crate::sdl_context::SdlContext;
 
 pub struct Chip8 {
     memory: Memory,
-    sdl_context: SdlContext,
+    sdl_context: Option<SdlContext>,
 }
 
 impl Chip8 {
@@ -23,11 +23,16 @@ impl Chip8 {
 
         let mut chip8 = Chip8 {
             memory,
-            sdl_context: SdlContext::new(),
+            sdl_context: None,
         };
         chip8.read_data(&data);
 
         chip8
+    }
+
+    pub fn setup_sdl(mut self) -> Self {
+        self.sdl_context = Some(SdlContext::new());
+        self
     }
 
     fn read_data(&mut self, data: &str) {
@@ -104,8 +109,15 @@ impl Chip8 {
 
     pub fn run(&mut self) {
         'fde: loop {
-            self.sdl_context.render_graphics(&self.memory);
-            self.sdl_context.handle_input().unwrap();
+            self.sdl_context
+                .as_mut()
+                .expect("SDL context not initialised")
+                .render_graphics(&self.memory);
+            self.sdl_context
+                .as_mut()
+                .expect("SDL context not initialised")
+                .handle_input()
+                .unwrap();
 
             if self.cycle() == -1 {
                 break 'fde;
@@ -113,9 +125,10 @@ impl Chip8 {
         }
     }
 
-    pub fn run_test(&mut self){
+    // run the emulator without requiring SDL context
+    // used only for testing purposes
+    pub fn run_test(&mut self) {
         'fde: loop {
-
             if self.cycle() == -1 {
                 break 'fde;
             }
@@ -169,16 +182,46 @@ impl Chip8 {
                 let vy_value = self.memory.get8(vy as usize);
                 self.memory.set8(vx as usize, vx_value + vy_value);
             }
-            Instruction::LDI(register) => {
-                self.memory.set16(Register::IR as usize, register);
+            Instruction::SUB(vx, vy) => {
+                let vx_value = self.memory.get8(vx.clone() as usize);
+                let vy_value = self.memory.get8(vy as usize);
+                self.memory.set8(vx as usize, vx_value - vy_value);
+                // if borrow occured (Vx < Vy) then set VF to 0
+                // otherwise set VF to 1
+                self.memory.set8(
+                    Register::v_register_from(0xF) as usize,
+                    if vy_value < vy_value { 0 } else { 1 },
+                );
+            }
+            Instruction::LDI(location) => {
+                self.memory.set16(Register::IR as usize, location);
+            }
+            Instruction::JPOff(offset) => {
+                let v0_value = self.memory.get8(Register::v_register_from(0) as usize) as u16;
+                self.memory.set16(Register::PC as usize, v0_value + offset);
             }
             Instruction::DRW(vx, vy, height) => {
                 self.draw_update(Instruction::DRW(vx, vy, height));
             }
             Instruction::LDK(vx) => {
                 println!("Waiting for keypress...");
-                let key = self.sdl_context.wait_for_keypress();
+                self.sdl_context.as_mut().unwrap().wait_for_keypress();
                 /* self.memory.set8(vx as usize, key as u8); */
+            }
+            Instruction::SEImm(vx, nn) => {
+                if self.memory.get8(vx as usize) == nn {
+                    self.fetch();
+                }
+            }
+            Instruction::SNE(vx, nn) => {
+                if self.memory.get8(vx as usize) != nn {
+                    self.fetch();
+                }
+            }
+            Instruction::SEDir(vx, vy) => {
+                if self.memory.get8(vx as usize) != self.memory.get8(vy as usize) {
+                    self.fetch();
+                }
             }
         }
     }

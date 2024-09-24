@@ -65,17 +65,17 @@ mod tests {
     }
 
     #[test]
-    fn test_set16_1() {
-        let mut memory = Memory::new();
-        memory.set16(Register::PC as usize, 0x200);
-        assert_eq!(memory.get16(Register::PC as usize), 0x200);
-    }
-
-    #[test]
-    fn test_set16_2() {
-        let mut memory = Memory::new();
-        memory.set16(0x206, 0xD015);
-        assert_eq!(memory.get16(0x206), 0xD015);
+    fn test_set16() {
+        {
+            let mut memory = Memory::new();
+            memory.set16(Register::PC as usize, 0x200);
+            assert_eq!(memory.get16(Register::PC as usize), 0x200);
+        }
+        {
+            let mut memory = Memory::new();
+            memory.set16(0x206, 0xD015);
+            assert_eq!(memory.get16(0x206), 0xD015);
+        }
     }
 
     #[test]
