@@ -18,7 +18,7 @@ pub enum Register {
     VD,
     VE,
     VF,
-    SP = 20,
+    DELAY_TIMER
 }
 
 impl Register {

@@ -17,8 +17,10 @@ pub enum Instruction {
     SUB(Register, Register),     // (0x8XY5) SUB Vx, Vy (Set Vx = Vx - Vy, set VF = NOT borrow)
     LDI(u16),                    // (0xANNN) LD I, NNN (Set I = NNN)
     JPOff(u16),                  // (0xBNNN) JP V0, NNN (Jump to address V0 + NNN)
-    DRW(Register, Register, u8), // DRW Vx, Vy, N
+    DRW(Register, Register, u8), // (0xDXYN) DRW Vx, Vy, N
+    LDVDT(Register),             // (0xFX07) LD Vx, DT
     LDK(Register),               // (0xFX0A) LD Vx, K
+    LDDT(Register),              // (0xFX15) LD DT, Vx
 }
 
 impl Instruction {
@@ -56,11 +58,13 @@ impl Instruction {
             0xB => Instruction::JPOff(((n2 as u16) << 8) | (b2 as u16)),
             0xD => Instruction::DRW(vx, vy, n4),
             0xF => match b2 {
+                0x07 => Instruction::LDVDT(Register::v_register_from(n2)),
                 0x0A => Instruction::LDK(Register::v_register_from(n2)),
+                0x15 => Instruction::LDDT(Register::v_register_from(n2)),
                 _ => panic!("Could not decode instruction beginning with 0xF"),
             },
             _ => {
-                panic!("Could not decode instruction at all")
+                panic!("Could not decode instruction {:#04X} at all", instruction)
             }
         }
     }
@@ -144,6 +148,22 @@ mod tests {
         assert_eq!(
             Instruction::decode(0x5010),
             Instruction::SEDir(Register::v_register_from(0), Register::v_register_from(1))
+        )
+    }
+
+    #[test]
+    fn test_decode_lddt() {
+        assert_eq!(
+            Instruction::decode(0xF015),
+            Instruction::LDDT(Register::v_register_from(0))
+        )
+    }
+
+    #[test]
+    fn test_decode_ldvdt() {
+        assert_eq!(
+            Instruction::decode(0xF007),
+            Instruction::LDVDT(Register::v_register_from(0))
         )
     }
 }

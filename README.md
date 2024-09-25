@@ -7,7 +7,7 @@ Here's a list of it's capabilities that I've implemented:
 - [ ] Stacks and Subroutines
 - [x] Graphics Display
 - Timers:
-    - [ ] Delay Timer
+    - [x] Delay Timer
     - [ ] Sound Timer
 - [x] Input Handling
 - Registers:

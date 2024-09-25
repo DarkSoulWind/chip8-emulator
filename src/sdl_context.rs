@@ -1,6 +1,6 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::Sdl;
+use sdl2::{Sdl, TimerSubsystem};
 
 use crate::graphics::Graphics;
 use crate::key::Key;
@@ -8,18 +8,39 @@ use crate::memory::Memory;
 
 pub struct SdlContext {
     _sdl_context: Sdl,
+    _timer: TimerSubsystem,
     graphics: Graphics,
     waiting_for_keypress: bool,
+    last_frame_time: u64,
 }
 
 impl SdlContext {
     pub fn new() -> Self {
         let _sdl_context = sdl2::init().expect("Unable to initialise sdl2");
+        let _timer = _sdl_context
+            .timer()
+            .expect("Unable to initialise timer subsystem");
+        let last_frame_time = _timer.ticks64();
         Self {
             graphics: Graphics::new(&_sdl_context),
             waiting_for_keypress: false,
             _sdl_context,
+            _timer,
+            last_frame_time,
         }
+    }
+
+    pub fn get_ticks(&self) -> u64 {
+        self._timer.ticks64()
+    }
+
+    // for use only in event loop
+    pub fn get_delta_time(&mut self) -> f32 {
+        let current_frame_time = self._timer.ticks64();
+        let delta_time_ms = current_frame_time - self.last_frame_time;
+        let delta_time = delta_time_ms as f32 / 1000.0;
+        self.last_frame_time = current_frame_time;
+        delta_time
     }
 
     pub fn render_graphics(&mut self, memory: &Memory) {

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::instruction::Instruction;
 use crate::memory::Memory;
 use crate::register::Register;
@@ -6,6 +8,7 @@ use crate::sdl_context::SdlContext;
 pub struct Chip8 {
     memory: Memory,
     sdl_context: Option<SdlContext>,
+    delay_timer: u32,
 }
 
 impl Chip8 {
@@ -24,6 +27,7 @@ impl Chip8 {
         let mut chip8 = Chip8 {
             memory,
             sdl_context: None,
+            delay_timer: 0,
         };
         chip8.read_data(&data);
 
@@ -108,7 +112,24 @@ impl Chip8 {
     }
 
     pub fn run(&mut self) {
+        let timer_frequency: f32 = 1.0 / 60.0;
+        let mut elapsed_time: f32 = 0.0;
+
         'fde: loop {
+            let delta_time = self.sdl_context.as_mut().unwrap().get_delta_time();
+            /* println!("Delta time: {delta_time}s"); */
+
+            elapsed_time += delta_time;
+
+            if elapsed_time >= timer_frequency {
+                if self.delay_timer > 0 {
+                    println!("Delay timer: {}", self.delay_timer);
+                    self.delay_timer -= 1;
+                }
+
+                elapsed_time -= timer_frequency;
+            }
+
             self.sdl_context
                 .as_mut()
                 .expect("SDL context not initialised")
@@ -122,16 +143,22 @@ impl Chip8 {
             if self.cycle() == -1 {
                 break 'fde;
             }
+
+            // sleep for 1/60th of a second
+            std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
         }
     }
 
     // run the emulator without requiring SDL context
     // used only for testing purposes
-    pub fn run_test(&mut self) {
+    pub fn test_run(&mut self) {
         'fde: loop {
             if self.cycle() == -1 {
                 break 'fde;
             }
+
+            // sleep for 1/60th of a second
+            std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
         }
     }
 
@@ -185,12 +212,13 @@ impl Chip8 {
             Instruction::SUB(vx, vy) => {
                 let vx_value = self.memory.get8(vx.clone() as usize);
                 let vy_value = self.memory.get8(vy as usize);
-                self.memory.set8(vx as usize, vx_value - vy_value);
+                self.memory
+                    .set8(vx as usize, vx_value.wrapping_sub(vy_value));
                 // if borrow occured (Vx < Vy) then set VF to 0
                 // otherwise set VF to 1
                 self.memory.set8(
                     Register::v_register_from(0xF) as usize,
-                    if vy_value < vy_value { 0 } else { 1 },
+                    if vx_value < vy_value { 0 } else { 1 },
                 );
             }
             Instruction::LDI(location) => {
@@ -223,6 +251,15 @@ impl Chip8 {
                     self.fetch();
                 }
             }
+            Instruction::LDDT(vx) => {
+                // set the delay timer to the value of vx
+                let vx_value = self.memory.get8(vx as usize);
+                self.delay_timer = vx_value as u32;
+            }
+            Instruction::LDVDT(vx) => {
+                // set the value of vx to the delay timer
+                self.memory.set8(vx as usize, self.delay_timer as u8);
+            }
         }
     }
 
@@ -235,12 +272,22 @@ impl Chip8 {
                 for i in 0..height {
                     let new_byte_data = self.memory.get8((index_location as usize) + (i as usize));
                     for j in 0..8 {
+                        let x_position_wrapped = x_position.wrapping_add(j) % 64;
+                        let y_position_wrapped = y_position.wrapping_add(i) % 32;
                         let old_bit_data =
-                            self.memory.get8_framebuffer(x_position + j, y_position + i);
+                            self.memory.get8_framebuffer(x_position_wrapped, y_position_wrapped);
                         let new_bit_data = (new_byte_data >> j) & 1;
                         let xored = new_bit_data ^ old_bit_data;
+
+                        // check if the pixel will be "unset"
+                        // set VF to 1 if true
+                        self.memory.set8(
+                            Register::v_register_from(0xF) as usize,
+                            (old_bit_data > xored) as u8,
+                        );
+
                         self.memory
-                            .set8_framebuffer(x_position + j, y_position + i, xored);
+                            .set8_framebuffer(x_position_wrapped, y_position_wrapped, xored);
                     }
                 }
             }
@@ -305,7 +352,7 @@ mod tests {
     202: 7001
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x02)
     }
 
@@ -317,7 +364,7 @@ mod tests {
     204: 8010 // LD v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x01)
     }
 
@@ -329,7 +376,7 @@ mod tests {
     204: 8011 // OR v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x01)
     }
 
@@ -341,7 +388,7 @@ mod tests {
     204: 8012 // AND v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x00)
     }
 
@@ -353,7 +400,7 @@ mod tests {
     204: 8013 // XOR v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x06)
     }
 
@@ -365,8 +412,36 @@ mod tests {
     204: 8014 // ADD v0, v1
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x02)
+    }
+
+    #[test]
+    fn test_execute_sub() {
+        // no borrowing
+        {
+            let code = r#"
+    200: 6009
+    202: 6103
+    204: 8015 // SUB v0, v1
+    "#;
+            let mut chip8 = Chip8::load_from_text(code);
+            chip8.test_run();
+            assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0x06);
+            assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 1);
+        }
+        // borrowing
+        {
+            let code = r#"
+    200: 6003
+    202: 6105
+    204: 8015 // SUB v0, v1
+    "#;
+            let mut chip8 = Chip8::load_from_text(code);
+            chip8.test_run();
+            assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0xFE);
+            assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 0);
+        }
     }
 
     #[test]
@@ -375,7 +450,7 @@ mod tests {
     200: A300 // SET IR, 0x300
     "#;
         let mut chip8 = Chip8::load_from_text(code);
-        chip8.run_test();
+        chip8.test_run();
         assert_eq!(chip8.get16(Register::IR as usize), 0x300)
     }
 }

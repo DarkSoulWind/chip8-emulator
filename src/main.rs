@@ -11,16 +11,17 @@ use emulator::Chip8;
 
 pub fn main() {
     let code = r#"
-        200: 600A // SET V0, 10
-        202: 6105 // SET V1, 5
-        204: A300 // SET I, 300
-        206: D015 // DRW V0, V1, 5 (draw at position (10, 5))
-        208: 6219 // SET V2, 25
-        20A: 631E // SET V3, 30
-        20C: 3219
-        20E: D232
-        210: 00E0
-        212: 1200
+        200: 600A // LD V0, 10
+        202: 6105 // LD V1, 5
+        204: A300 // LD I, 300
+        206: 64FF // LD V4, 0xFF
+        208: F415 // LD DT, V4
+        20A: F007 // LD V0, DT
+        20C: D015 // DRW V0, V1, 5
+        20E: D015 // DRW V0, V1, 5
+        210: 4000 // SNE V0, 0
+        212: 1206 // JP 206
+        214: 120A // JP 20A
 
         300: FF
         301: 81
