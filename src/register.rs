@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Register {
     PC = 0, // Program counter is 16 bits
     IR = 2, // Index register is 16 bits

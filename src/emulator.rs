@@ -134,11 +134,17 @@ impl Chip8 {
                 .as_mut()
                 .expect("SDL context not initialised")
                 .render_graphics(&self.memory);
-            self.sdl_context
+            match self
+                .sdl_context
                 .as_mut()
                 .expect("SDL context not initialised")
                 .handle_input()
-                .unwrap();
+            {
+                Err("QUIT") => {
+                    panic!("Oh fuck imma quit bye");
+                }
+                _ => {}
+            }
 
             if self.cycle() == -1 {
                 break 'fde;
@@ -205,12 +211,12 @@ impl Chip8 {
                 self.memory.set8(vx as usize, vx_value ^ vy_value);
             }
             Instruction::ADDDir(vx, vy) => {
-                let vx_value = self.memory.get8(vx.clone() as usize);
+                let vx_value = self.memory.get8(vx as usize);
                 let vy_value = self.memory.get8(vy as usize);
                 self.memory.set8(vx as usize, vx_value + vy_value);
             }
             Instruction::SUB(vx, vy) => {
-                let vx_value = self.memory.get8(vx.clone() as usize);
+                let vx_value = self.memory.get8(vx as usize);
                 let vy_value = self.memory.get8(vy as usize);
                 self.memory
                     .set8(vx as usize, vx_value.wrapping_sub(vy_value));
@@ -219,6 +225,26 @@ impl Chip8 {
                 self.memory.set8(
                     Register::v_register_from(0xF) as usize,
                     if vx_value < vy_value { 0 } else { 1 },
+                );
+            }
+            Instruction::SHR(vx) => {
+                let vx_value = self.memory.get8(vx as usize);
+                let lsb = vx_value & 1;
+                self.memory.set8(vx as usize, vx_value >> 1);
+                // store least significant bit in register VF
+                self.memory
+                    .set8(Register::v_register_from(0xF) as usize, lsb);
+            }
+            Instruction::SUBN(vx, vy) => {
+                let vx_value = self.memory.get8(vx as usize);
+                let vy_value = self.memory.get8(vy as usize);
+                self.memory
+                    .set8(vx as usize, vy_value.wrapping_sub(vx_value));
+                // if borrow occured (Vy < Vx) then set VF to 0
+                // otherwise set VF to 1
+                self.memory.set8(
+                    Register::v_register_from(0xF) as usize,
+                    if vy_value < vx_value { 0 } else { 1 },
                 );
             }
             Instruction::LDI(location) => {
@@ -274,8 +300,9 @@ impl Chip8 {
                     for j in 0..8 {
                         let x_position_wrapped = x_position.wrapping_add(j) % 64;
                         let y_position_wrapped = y_position.wrapping_add(i) % 32;
-                        let old_bit_data =
-                            self.memory.get8_framebuffer(x_position_wrapped, y_position_wrapped);
+                        let old_bit_data = self
+                            .memory
+                            .get8_framebuffer(x_position_wrapped, y_position_wrapped);
                         let new_bit_data = (new_byte_data >> j) & 1;
                         let xored = new_bit_data ^ old_bit_data;
 
@@ -436,6 +463,48 @@ mod tests {
     200: 6003
     202: 6105
     204: 8015 // SUB v0, v1
+    "#;
+            let mut chip8 = Chip8::load_from_text(code);
+            chip8.test_run();
+            assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0xFE);
+            assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 0);
+        }
+    }
+
+    #[test]
+    fn test_decode_shr() {
+        {
+            let code = r#"
+    200: 6003
+    202: 8006 // SHR V0
+    "#;
+            let mut chip8 = Chip8::load_from_text(code);
+            chip8.test_run();
+            assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 1);
+            assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 1);
+        }
+    }
+
+    #[test]
+    fn test_execute_subn() {
+        // no borrowing
+        {
+            let code = r#"
+    200: 6003
+    202: 6105
+    204: 8017 // SUBN v0, v1
+    "#;
+            let mut chip8 = Chip8::load_from_text(code);
+            chip8.test_run();
+            assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 2);
+            assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 1);
+        }
+        // borrowing
+        {
+            let code = r#"
+    200: 6005
+    202: 6103
+    204: 8017 // SUBN v0, v1
     "#;
             let mut chip8 = Chip8::load_from_text(code);
             chip8.test_run();

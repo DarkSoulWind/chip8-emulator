@@ -15,6 +15,8 @@ pub enum Instruction {
     XOR(Register, Register),     // (0x8XY3) XOR Vx, Vy (Set Vx = Vx XOR Vy)
     ADDDir(Register, Register),  // (0x8XY4) ADD Vx, Vy (Set Vx = Vx + Vy, set VF = carry)
     SUB(Register, Register),     // (0x8XY5) SUB Vx, Vy (Set Vx = Vx - Vy, set VF = NOT borrow)
+    SHR(Register),               // (0x8XY6) SHR Vx (Set Vx = Vx >> 1, set VF = Vx & 0x1)
+    SUBN(Register, Register),    // (0x8XY7) SUBN Vx, Vy (Set Vx = Vy - Vx, set VF = NOT borrow)
     LDI(u16),                    // (0xANNN) LD I, NNN (Set I = NNN)
     JPOff(u16),                  // (0xBNNN) JP V0, NNN (Jump to address V0 + NNN)
     DRW(Register, Register, u8), // (0xDXYN) DRW Vx, Vy, N
@@ -52,7 +54,9 @@ impl Instruction {
                 3 => Instruction::XOR(vx, vy),
                 4 => Instruction::ADDDir(vx, vy),
                 5 => Instruction::SUB(vx, vy),
-                _ => panic!("Could not decode instruction beginning with 0x8"),
+                6 => Instruction::SHR(vx),
+                7 => Instruction::SUBN(vx, vy),
+                _ => panic!("Could not decode instruction {:#04X}", instruction),
             },
             0xA => Instruction::LDI(((n2 as u16) << 8) | (b2 as u16)),
             0xB => Instruction::JPOff(((n2 as u16) << 8) | (b2 as u16)),
@@ -61,7 +65,7 @@ impl Instruction {
                 0x07 => Instruction::LDVDT(Register::v_register_from(n2)),
                 0x0A => Instruction::LDK(Register::v_register_from(n2)),
                 0x15 => Instruction::LDDT(Register::v_register_from(n2)),
-                _ => panic!("Could not decode instruction beginning with 0xF"),
+                _ => panic!("Could not decode instruction {:#04X}", instruction),
             },
             _ => {
                 panic!("Could not decode instruction {:#04X} at all", instruction)
@@ -164,6 +168,14 @@ mod tests {
         assert_eq!(
             Instruction::decode(0xF007),
             Instruction::LDVDT(Register::v_register_from(0))
+        )
+    }
+
+    #[test]
+    fn test_decode_shr() {
+        assert_eq!(
+            Instruction::decode(0x8006),
+            Instruction::SHR(Register::v_register_from(0))
         )
     }
 }
