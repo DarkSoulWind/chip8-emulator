@@ -1,4 +1,5 @@
 extern crate sdl2;
+
 mod emulator;
 mod graphics;
 mod instruction;
@@ -29,10 +30,6 @@ pub fn main() {
         303: 81
         304: FF
         "#;
-
-    // let code = r#"
-    //     200: F10A // wait for keypress, store it in V1
-    //     "#;
 
     let mut chip8 = Chip8::load_from_text(code).setup_sdl();
     chip8.run();

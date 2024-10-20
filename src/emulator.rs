@@ -95,7 +95,7 @@ impl Chip8 {
                 self.memory.set16(address, instruction);
             }
             _ => {
-                panic!("{}", &format!("{line_number}: FUUUUUUUCK"));
+                panic!("{}", &format!("{line_number}: Invalid instruction length"));
             }
         };
     }
@@ -141,7 +141,7 @@ impl Chip8 {
                 .handle_input()
             {
                 Err("QUIT") => {
-                    panic!("Oh fuck imma quit bye");
+                    panic!("Quitting");
                 }
                 _ => {}
             }
@@ -246,6 +246,14 @@ impl Chip8 {
                     Register::v_register_from(0xF) as usize,
                     if vy_value < vx_value { 0 } else { 1 },
                 );
+            }
+            Instruction::SHL(vx) => {
+                let vx_value = self.memory.get8(vx as usize);
+                let msb = vx_value & 0b1000_0000;
+                self.memory.set8(vx as usize, vx_value << 1);
+                // store most significant bit in register VF
+                self.memory
+                    .set8(Register::v_register_from(0xF) as usize, msb);
             }
             Instruction::LDI(location) => {
                 self.memory.set16(Register::IR as usize, location);
@@ -510,6 +518,20 @@ mod tests {
             chip8.test_run();
             assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 0xFE);
             assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 0);
+        }
+    }
+
+    #[test]
+    fn test_decode_shl() {
+        {
+            let code = r#"
+    200: 6003
+    202: 8006 // SHR V0
+    "#;
+            let mut chip8 = Chip8::load_from_text(code);
+            chip8.test_run();
+            assert_eq!(chip8.get8(Register::v_register_from(0) as usize), 1);
+            assert_eq!(chip8.get8(Register::v_register_from(0xF) as usize), 1);
         }
     }
 

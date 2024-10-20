@@ -15,8 +15,9 @@ pub enum Instruction {
     XOR(Register, Register),     // (0x8XY3) XOR Vx, Vy (Set Vx = Vx XOR Vy)
     ADDDir(Register, Register),  // (0x8XY4) ADD Vx, Vy (Set Vx = Vx + Vy, set VF = carry)
     SUB(Register, Register),     // (0x8XY5) SUB Vx, Vy (Set Vx = Vx - Vy, set VF = NOT borrow)
-    SHR(Register),               // (0x8XY6) SHR Vx (Set Vx = Vx >> 1, set VF = Vx & 0x1)
+    SHR(Register),               // (0x8XY6) SHR Vx (Set Vx = Vx >> 1, set VF = Vx & 0b1)
     SUBN(Register, Register),    // (0x8XY7) SUBN Vx, Vy (Set Vx = Vy - Vx, set VF = NOT borrow)
+    SHL(Register),               // (0x8XYE) SHL Vx (Set Vx = Vx << 1, set VF = Vx & 0b1000_0000)
     LDI(u16),                    // (0xANNN) LD I, NNN (Set I = NNN)
     JPOff(u16),                  // (0xBNNN) JP V0, NNN (Jump to address V0 + NNN)
     DRW(Register, Register, u8), // (0xDXYN) DRW Vx, Vy, N
@@ -31,12 +32,17 @@ impl Instruction {
             return Instruction::CLS;
         }
 
+        // DEBUGGING PURPOSES
         /* println!("instruction: {:#4x}", instruction); */
+
+        // seperate the instruction into two bytes, and then extract the nibbles
         let [b1, b2] = instruction.to_be_bytes();
         let n1 = b1 >> 4;
         let n2 = b1 & 0xF;
         let n3 = b2 >> 4;
         let n4 = b2 & 0xF;
+
+        // general purpose registers vx and vy are typically encoded in the lower nibbles
         let vx = Register::v_register_from(n2);
         let vy = Register::v_register_from(n3);
 
@@ -56,6 +62,7 @@ impl Instruction {
                 5 => Instruction::SUB(vx, vy),
                 6 => Instruction::SHR(vx),
                 7 => Instruction::SUBN(vx, vy),
+                0xE => Instruction::SHL(vx),
                 _ => panic!("Could not decode instruction {:#04X}", instruction),
             },
             0xA => Instruction::LDI(((n2 as u16) << 8) | (b2 as u16)),
@@ -176,6 +183,14 @@ mod tests {
         assert_eq!(
             Instruction::decode(0x8006),
             Instruction::SHR(Register::v_register_from(0))
+        )
+    }
+
+    #[test]
+    fn test_decode_shl() {
+        assert_eq!(
+            Instruction::decode(0x800E),
+            Instruction::SHL(Register::v_register_from(0))
         )
     }
 }
